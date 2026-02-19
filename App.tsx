@@ -47,8 +47,6 @@ export interface AppState {
   activeCategory: string;
 }
 
-export type Theme = 'dark' | 'light';
-
 // --- CONSTANTS ---
 export const CONFIG = {
   whatsappNumber: '918218377572',
@@ -71,7 +69,7 @@ export const INITIAL_COUPONS: Coupon[] = [
   { code: 'FAMILY50', type: 'flat', value: 50 }
 ];
 
-// --- STORE ---
+// --- STORE LOGIC ---
 export function useStore() {
   const [state, setState] = useState<AppState>({
     theme: 'dark',
@@ -86,7 +84,7 @@ export function useStore() {
 
   const [loading, setLoading] = useState(true);
 
-  // Initialize from LocalStorage
+  // Initialize
   useEffect(() => {
     const stored = localStorage.getItem('appState');
     if (stored) {
@@ -100,21 +98,15 @@ export function useStore() {
           coupons: parsed.coupons || INITIAL_COUPONS,
         });
       } catch (e) {
-        // Fallback if parse fails
         setState(s => ({ ...s, products: INITIAL_PRODUCTS, coupons: INITIAL_COUPONS }));
       }
     } else {
-      setState(s => ({
-        ...s,
-        products: INITIAL_PRODUCTS,
-        coupons: INITIAL_COUPONS
-      }));
+      setState(s => ({ ...s, products: INITIAL_PRODUCTS, coupons: INITIAL_COUPONS }));
     }
-    
     setTimeout(() => setLoading(false), 800);
   }, []);
 
-  // Sync to LocalStorage
+  // Sync
   useEffect(() => {
     if (!loading) {
       localStorage.setItem('appState', JSON.stringify(state));
@@ -128,7 +120,6 @@ export function useStore() {
     }
   }, [state, loading]);
 
-  // Actions
   const toggleTheme = () => setState(s => ({ ...s, theme: s.theme === 'dark' ? 'light' : 'dark' }));
   
   const addToCart = (product: Product) => {
@@ -185,24 +176,10 @@ export function useStore() {
 // --- COMPONENTS ---
 
 // 1. Toast
-interface ToastProps {
-  message: string;
-  type: 'success' | 'error';
-  onClose: () => void;
-}
-const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
+const Toast = ({ message, type, onClose }: { message: string, type: 'success'|'error', onClose: () => void }) => {
+  useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
   return (
-    <div className={`
-      flex items-center gap-2 px-4 py-3 rounded-lg shadow-xl border-l-4 animate-[slideUp_0.3s_ease]
-      ${type === 'success' 
-        ? 'bg-light-card dark:bg-ice-card border-ice-success text-light-text dark:text-white' 
-        : 'bg-light-card dark:bg-ice-card border-ice-danger text-light-text dark:text-white'}
-    `}>
+    <div className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-xl border-l-4 animate-[slideUp_0.3s_ease] ${type === 'success' ? 'bg-light-card dark:bg-ice-card border-ice-success text-light-text dark:text-white' : 'bg-light-card dark:bg-ice-card border-ice-danger text-light-text dark:text-white'}`}>
       {type === 'success' ? <CheckCircle size={18} className="text-ice-success" /> : <XCircle size={18} className="text-ice-danger" />}
       <span className="font-medium text-sm">{message}</span>
     </div>
@@ -210,25 +187,13 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
 };
 
 // 2. CartModal
-interface CartModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  cart: CartItem[];
-  appliedCoupon: Coupon | null;
-  coupons: Coupon[];
-  onUpdateQty: (id: number, delta: number) => void;
-  onApplyCoupon: (c: Coupon | null) => void;
-  onCheckout: () => void;
-}
-const CartModal: React.FC<CartModalProps> = ({
-  isOpen, onClose, cart, appliedCoupon, coupons, onUpdateQty, onApplyCoupon, onCheckout
-}) => {
+const CartModal = ({ isOpen, onClose, cart, appliedCoupon, coupons, onUpdateQty, onApplyCoupon, onCheckout }: any) => {
   const [couponInput, setCouponInput] = useState('');
   const [couponMsg, setCouponMsg] = useState('');
 
   if (!isOpen) return null;
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const subtotal = cart.reduce((sum: number, item: CartItem) => sum + (item.price * item.qty), 0);
   let discount = 0;
   if (appliedCoupon) {
     if (appliedCoupon.type === 'percent') discount = subtotal * (appliedCoupon.value / 100);
@@ -239,14 +204,9 @@ const CartModal: React.FC<CartModalProps> = ({
 
   const handleApplyCoupon = () => {
     const code = couponInput.trim().toUpperCase();
-    const found = coupons.find(c => c.code === code);
-    if (found) {
-      onApplyCoupon(found);
-      setCouponMsg(`Coupon "${code}" applied!`);
-    } else {
-      setCouponMsg('Invalid coupon code');
-      setTimeout(() => setCouponMsg(''), 2000);
-    }
+    const found = coupons.find((c: Coupon) => c.code === code);
+    if (found) { onApplyCoupon(found); setCouponMsg(`Coupon "${code}" applied!`); } 
+    else { setCouponMsg('Invalid coupon code'); setTimeout(() => setCouponMsg(''), 2000); }
   };
 
   return (
@@ -254,9 +214,7 @@ const CartModal: React.FC<CartModalProps> = ({
       <div className="bg-light-card dark:bg-ice-card w-full max-w-[500px] max-h-[90vh] flex flex-col rounded-2xl border border-gray-200 dark:border-white/10 relative">
         <div className="p-5 border-b border-gray-200 dark:border-white/10 flex justify-between items-center sticky top-0 bg-light-card dark:bg-ice-card rounded-t-2xl z-10">
           <h2 className="text-xl font-bold dark:text-white text-gray-800">Your Cart 🛒</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:text-ice-text2 dark:hover:text-white">
-            <X size={24} />
-          </button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:text-ice-text2 dark:hover:text-white"><X size={24} /></button>
         </div>
         <div className="p-5 overflow-y-auto flex-1">
           {cart.length === 0 ? (
@@ -264,7 +222,7 @@ const CartModal: React.FC<CartModalProps> = ({
           ) : (
             <>
               <div className="space-y-4 mb-6">
-                {cart.map(item => (
+                {cart.map((item: CartItem) => (
                   <div key={item.id} className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-white/10 last:border-0">
                     <div>
                       <div className="font-semibold dark:text-white text-gray-800">{item.name}</div>
@@ -301,14 +259,7 @@ const CartModal: React.FC<CartModalProps> = ({
 };
 
 // 3. ProductModal
-interface ProductModalProps {
-  product: Product | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onAddToCart: (p: Product) => void;
-  shopOpen: boolean;
-}
-const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose, onAddToCart, shopOpen }) => {
+const ProductModal = ({ product, isOpen, onClose, onAddToCart, shopOpen }: any) => {
   if (!isOpen || !product) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
@@ -338,42 +289,17 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose, o
 };
 
 // 4. AdminPanel
-interface AdminPanelProps {
-  products: Product[];
-  coupons: Coupon[];
-  orders: Order[];
-  shopOpen: boolean;
-  onLogout: () => void;
-  onAddProduct: (p: Product) => void;
-  onDeleteProduct: (id: number) => void;
-  onToggleStock: (id: number) => void;
-  onAddCoupon: (c: Coupon) => void;
-  onDeleteCoupon: (code: string) => void;
-  onToggleShop: () => void;
-  onResetData: () => void;
-  toast: (msg: string, type: 'success' | 'error') => void;
-}
-type Tab = 'menu' | 'orders' | 'coupons' | 'settings';
-
-const AdminPanel: React.FC<AdminPanelProps> = ({
-  products, coupons, orders, shopOpen, onLogout,
-  onAddProduct, onDeleteProduct, onToggleStock,
-  onAddCoupon, onDeleteCoupon, onToggleShop, onResetData, toast
-}) => {
-  const [activeTab, setActiveTab] = useState<Tab>('menu');
+const AdminPanel = ({ products, coupons, orders, shopOpen, onLogout, onAddProduct, onDeleteProduct, onToggleStock, onAddCoupon, onDeleteCoupon, onToggleShop, onResetData, toast }: any) => {
+  const [activeTab, setActiveTab] = useState<'menu'|'orders'|'coupons'|'settings'>('menu');
   const [newProd, setNewProd] = useState({ name: '', price: '', cat: 'Sticks', img: '' });
-  const [newCoupon, setNewCoupon] = useState({ code: '', val: '', type: 'percent' as 'percent' | 'flat' });
+  const [newCoupon, setNewCoupon] = useState({ code: '', val: '', type: 'percent' as 'percent'|'flat' });
 
   const handleAddProduct = () => {
     if (!newProd.name || !newProd.price) return toast("Name and Price required", "error");
     onAddProduct({
-      id: Date.now(),
-      name: newProd.name,
-      price: parseFloat(newProd.price),
-      category: newProd.cat,
+      id: Date.now(), name: newProd.name, price: parseFloat(newProd.price), category: newProd.cat,
       image: newProd.img || 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400',
-      inStock: true,
-      rating: 0
+      inStock: true, rating: 0
     });
     setNewProd({ name: '', price: '', cat: 'Sticks', img: '' });
     toast("Product added", "success");
@@ -381,11 +307,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleAddCoupon = () => {
     if (!newCoupon.code || !newCoupon.val) return toast("Code and Value required", "error");
-    onAddCoupon({
-      code: newCoupon.code.toUpperCase(),
-      value: parseFloat(newCoupon.val),
-      type: newCoupon.type
-    });
+    onAddCoupon({ code: newCoupon.code.toUpperCase(), value: parseFloat(newCoupon.val), type: newCoupon.type });
     setNewCoupon({ code: '', val: '', type: 'percent' });
     toast("Coupon added", "success");
   };
@@ -399,7 +321,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       <div className="max-w-[1200px] mx-auto p-4">
         <div className="flex gap-2 mb-6 overflow-x-auto border-b border-gray-200 dark:border-white/10 pb-4">
           {['menu', 'orders', 'coupons', 'settings'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab as Tab)} className={`px-4 py-2 rounded-lg border text-sm font-medium capitalize whitespace-nowrap transition-colors ${activeTab === tab ? 'bg-ice-accent text-black border-ice-accent' : 'bg-transparent border-gray-300 dark:border-white/20 dark:text-white text-gray-600 hover:bg-gray-100 dark:hover:bg-white/5'}`}>{tab === 'menu' ? '📋 Menu' : tab === 'orders' ? '📦 Orders' : tab === 'coupons' ? '🎟️ Coupons' : '⚙️ Settings'}</button>
+            <button key={tab} onClick={() => setActiveTab(tab as any)} className={`px-4 py-2 rounded-lg border text-sm font-medium capitalize whitespace-nowrap transition-colors ${activeTab === tab ? 'bg-ice-accent text-black border-ice-accent' : 'bg-transparent border-gray-300 dark:border-white/20 dark:text-white text-gray-600 hover:bg-gray-100 dark:hover:bg-white/5'}`}>{tab === 'menu' ? '📋 Menu' : tab === 'orders' ? '📦 Orders' : tab === 'coupons' ? '🎟️ Coupons' : '⚙️ Settings'}</button>
           ))}
         </div>
         {activeTab === 'menu' && (
@@ -416,7 +338,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
             <h3 className="font-bold text-lg mt-8">Current Products</h3>
             <div className="grid gap-3">
-              {products.map(p => (
+              {products.map((p: Product) => (
                 <div key={p.id} className="bg-light-card dark:bg-ice-card p-4 rounded-xl border border-gray-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <div className="font-semibold">{p.name} <span className="text-gray-500 dark:text-ice-text2 ml-2">₹{p.price}</span></div>
@@ -434,7 +356,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         {activeTab === 'orders' && (
           <div className="space-y-4">
             {orders.length === 0 ? <div className="text-center text-gray-500 py-10">No orders yet.</div> :
-              [...orders].reverse().map(o => (
+              [...orders].reverse().map((o: Order) => (
                 <div key={o.id} className="bg-light-card dark:bg-ice-card p-4 rounded-xl border border-gray-200 dark:border-white/10">
                   <div className="flex justify-between mb-2"><strong className="text-ice-accent">Order #{String(o.id).slice(-4)}</strong><span className="text-xs text-gray-500 dark:text-ice-text2">{o.time}</span></div>
                   <div className="text-sm text-gray-600 dark:text-ice-text2 mb-2">{o.items.map(i => `${i.name} x${i.qty}`).join(', ')}</div>
@@ -456,7 +378,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             </div>
             <div className="grid gap-3">
-              {coupons.map(c => (
+              {coupons.map((c: Coupon) => (
                 <div key={c.code} className="bg-light-card dark:bg-ice-card p-4 rounded-xl border border-gray-200 dark:border-white/10 flex justify-between items-center">
                   <div><strong className="text-lg">{c.code}</strong><span className="ml-2 text-gray-500 dark:text-ice-text2">{c.value}{c.type === 'percent' ? '%' : '₹'} off</span></div>
                   <button onClick={() => onDeleteCoupon(c.code)} className="p-2 text-ice-danger bg-ice-danger/10 rounded hover:bg-ice-danger/20"><Trash2 size={16} /></button>
@@ -687,7 +609,7 @@ function App() {
       )}
 
       <CartModal isOpen={cartOpen} onClose={() => setCartOpen(false)} cart={state.cart} appliedCoupon={state.appliedCoupon} coupons={state.coupons} onUpdateQty={updateCartQty} onApplyCoupon={applyCoupon} onCheckout={handleCheckout} />
-      <ProductModal product={activeProduct} isOpen={!!activeProduct} onClose={() => setActiveProduct(null)} onAddToCart={(p) => { addToCart(p); showToast(`${p.name} added!`); }} shopOpen={state.shopOpen} />
+      <ProductModal product={activeProduct} isOpen={!!activeProduct} onClose={() => setActiveProduct(null)} onAddToCart={(p: Product) => { addToCart(p); showToast(`${p.name} added!`); }} shopOpen={state.shopOpen} />
 
       <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] flex flex-col gap-2 w-max max-w-[90vw]">
         {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
